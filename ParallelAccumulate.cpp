@@ -1,20 +1,70 @@
-// ParallelAccumulate.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
-
 #include <iostream>
+#include <thread>
+#include <vector>
+#include <future>
+#include <chrono>
+#include <cstdint>
+#include <functional>
+
+std::mutex accumulateMutex;
+void accumulate(unsigned long long& total_result, unsigned int lastNumber, unsigned int firstNumber = 1)
+{
+	unsigned long long result = 0;
+	while (lastNumber >= firstNumber)
+	{
+		result += lastNumber;
+		lastNumber -= 1;
+	}
+
+	std::lock_guard<std::mutex> lock(accumulateMutex);
+	total_result += result;
+}
+
+unsigned long long parallelAccumulate(unsigned int lastNumber)
+{
+	// Prepare variables
+	const unsigned int numOfThreads = std::thread::hardware_concurrency() - 1; //(1) - one thread for main thread
+	std::vector<std::thread> threadsVector;
+	const unsigned int numbersPerGroup = lastNumber / numOfThreads;
+	unsigned int firstNumberOfGroup;
+	unsigned long long result = 0;
+
+	// Split set on threads
+	for (int i = 0; i < numOfThreads - 1; i++)
+	{
+		firstNumberOfGroup = lastNumber - numbersPerGroup + 1;
+		threadsVector.push_back(std::move(std::thread(accumulate, std::ref(result), lastNumber, firstNumberOfGroup)));
+		lastNumber = firstNumberOfGroup - 1;
+	}
+	threadsVector.push_back(std::move(std::thread(accumulate, std::ref(result), lastNumber, 1)));
+
+	// Accumulate result
+	for (auto& t : threadsVector)
+	{
+		t.join();
+	}
+
+	return result;
+}
 
 int main()
 {
-    std::cout << "Hello World!\n";
+	auto start = std::chrono::system_clock::now();
+	unsigned long long result = 0;
+	accumulate(result, 1000000001);
+	std::cout << result << "\n";
+	auto end = std::chrono::system_clock::now();
+	auto elapsed = (end - start).count();
+	std::cout << "Elapsed time of normal accumulate: " << elapsed << "\n\n";
+
+	start = std::chrono::system_clock::now();
+	std::cout << parallelAccumulate(1000000001) << "\n";
+	end = std::chrono::system_clock::now();
+	auto elapsed2 = (end - start).count();
+	std::cout << "Elapsed time of parallel accumulate: " << elapsed2 << "\n\n";
+
+	float ratio = static_cast<float>(elapsed) / elapsed2;
+	std::cout << "Parallel version is " << ratio << "x faster" << "\n\n\n";
+
+	return 0;
 }
-
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
-
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
