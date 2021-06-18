@@ -23,7 +23,7 @@ void accumulate(unsigned long long& total_result, unsigned int lastNumber, unsig
 unsigned long long parallelAccumulate(unsigned int lastNumber)
 {
 	// Prepare variables
-	const unsigned int numOfThreads = std::thread::hardware_concurrency() - 2; //(2) - one thread for main thread a one for collecting results
+	const unsigned int numOfThreads = std::thread::hardware_concurrency() - 1; //(1) - one thread for main thread
 	std::vector<std::future<void>> futuresVector;
 	const unsigned int numbersPerGroup = lastNumber / numOfThreads;
 	unsigned int firstNumberOfGroup;
