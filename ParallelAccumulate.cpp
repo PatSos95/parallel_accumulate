@@ -9,25 +9,6 @@
 #include <mutex>
 #include <list>
 
-class Queue;
-
-class Producer
-{
-public:
-	Producer(Queue& queue) : queue_(queue) {
-
-	}
-
-	auto run() {
-		//return std::async([this] {for (int i = 0; i < 10000; i++) { this->queue_.push(i); }});
-	}
-
-private:
-	Queue& queue_;
-};
-
-class Consumer {};
-
 class Queue
 {
 public:
@@ -48,8 +29,8 @@ public:
 		queue_not_full_.notify_one();
 		return value;
 	}
-private:
 
+private:
 	bool is_full() const
 	{
 		return queue_.size() >= max_size;
@@ -67,7 +48,36 @@ private:
 	std::condition_variable queue_not_empty_;
 };
 
-/*
+class Producer
+{
+public:
+	Producer(Queue& queue) : queue_(queue) {}
+
+	auto run() {
+		return std::async([=, this] {for (int i = 0; i < 1000000001; i++) { this->queue_.push(i); }});
+	}
+
+private:
+	Queue& queue_;
+};
+
+class Consumer {
+public:
+	Consumer(Queue& queue) : queue_(queue), result(0) {}
+
+	auto run() {
+		return std::async([this] {for (int i = 0; i < 10000; i++) {
+			int number = this->queue_.pop();
+			result += number; 
+		}});
+	}
+
+private:
+	Queue& queue_;
+	long long result;
+};
+
+
 void main()
 {
 	Queue q;
@@ -77,9 +87,9 @@ void main()
 	auto future_producer = p.run();
 	auto future_consumer = c.run();
 
-	auto finished_future = std::experimental::when_all(future_producer, future_consumer)
-		finished_future.wait()
-}*/
+	future_producer.wait();
+	future_consumer.wait();
+}
 
 class Accumulator
 {
@@ -131,6 +141,7 @@ private:
 	std::mutex accumulateMutex;
 };
 
+/*
 int main()
 {
 	Accumulator acc;
@@ -155,4 +166,4 @@ int main()
 	std::cout << "Parallel version is " << ratio << "x faster" << "\n\n\n";
 
 	return 0;
-}
+}*/
