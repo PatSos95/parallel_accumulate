@@ -33,20 +33,20 @@ class Queue
 public:
 	void push(int value)
 	{
-		/*std::unique_lock lock(mutex_);
+		std::unique_lock lock(mutex_);
 		queue_not_full_.wait(lock, [this] {return !this->is_full(); });
 		queue_.push_back(value);
-		queue_not_empty_.notify_one();*/
+		queue_not_empty_.notify_one();
 	}
 
 	int pop()
 	{
-		/*std::unique_lock lock(mutex_);
+		std::unique_lock lock(mutex_);
 		queue_not_empty_.wait(lock, [this] {return !this->is_empty(); });
 		int value = queue_.front();
 		queue_.pop_front();
 		queue_not_full_.notify_one();
-		return value;*/
+		return value;
 	}
 private:
 
