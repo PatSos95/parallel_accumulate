@@ -5,7 +5,81 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <condition_variable>
+#include <mutex>
+#include <list>
 
+class Queue;
+
+class Producer
+{
+public:
+	Producer(Queue& queue) : queue_(queue) {
+
+	}
+
+	auto run() {
+		//return std::async([this] {for (int i = 0; i < 10000; i++) { this->queue_.push(i); }});
+	}
+
+private:
+	Queue& queue_;
+};
+
+class Consumer {};
+
+class Queue
+{
+public:
+	void push(int value)
+	{
+		/*std::unique_lock lock(mutex_);
+		queue_not_full_.wait(lock, [this] {return !this->is_full(); });
+		queue_.push_back(value);
+		queue_not_empty_.notify_one();*/
+	}
+
+	int pop()
+	{
+		/*std::unique_lock lock(mutex_);
+		queue_not_empty_.wait(lock, [this] {return !this->is_empty(); });
+		int value = queue_.front();
+		queue_.pop_front();
+		queue_not_full_.notify_one();
+		return value;*/
+	}
+private:
+
+	bool is_full() const
+	{
+		return queue_.size() >= max_size;
+	}
+
+	bool is_empty() const
+	{
+		return queue_.empty();
+	}
+
+	const std::size_t max_size = 3;
+	std::mutex mutex_;
+	std::list<int> queue_;
+	std::condition_variable queue_not_full_;
+	std::condition_variable queue_not_empty_;
+};
+
+/*
+void main()
+{
+	Queue q;
+	Producer p(q);
+	Consumer c(q);
+
+	auto future_producer = p.run();
+	auto future_consumer = c.run();
+
+	auto finished_future = std::experimental::when_all(future_producer, future_consumer)
+		finished_future.wait()
+}*/
 
 class Accumulator
 {
