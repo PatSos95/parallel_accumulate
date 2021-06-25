@@ -14,82 +14,84 @@ class Queue
 public:
 	void push(int value)
 	{
-		std::unique_lock lock(mutex_);
-		queue_not_full_.wait(lock, [this] {return !this->is_full(); });
-		queue_.push_back(value);
-		queue_not_empty_.notify_one();
+		std::unique_lock lock(queueMutex);
+		queueNotFull.wait(lock, [this] {return !this->isFull(); });
+		queue.push_back(value);
+		queueNotEmpty.notify_one();
 	}
 
 	int pop()
 	{
-		std::unique_lock lock(mutex_);
-		queue_not_empty_.wait(lock, [this] {return !this->is_empty(); });
-		int value = queue_.front();
-		queue_.pop_front();
-		queue_not_full_.notify_one();
+		std::unique_lock lock(queueMutex);
+		queueNotEmpty.wait(lock, [this] {return !this->isEmpty(); });
+		int value = queue.front();
+		queue.pop_front();
+		queueNotFull.notify_one();
 		return value;
 	}
 
+	unsigned int size()
+	{
+		return queue.size();
+	}
+
 private:
-	bool is_full() const
+	bool isFull() const
 	{
-		return queue_.size() >= max_size;
+		return queue.size() >= maxSize;
 	}
 
-	bool is_empty() const
+	bool isEmpty() const
 	{
-		return queue_.empty();
+		return queue.empty();
 	}
 
-	const std::size_t max_size = 3;
-	std::mutex mutex_;
-	std::list<int> queue_;
-	std::condition_variable queue_not_full_;
-	std::condition_variable queue_not_empty_;
+	const std::size_t maxSize = 1;
+	std::mutex queueMutex;
+	std::list<int> queue;
+	std::condition_variable queueNotFull;
+	std::condition_variable queueNotEmpty;
 };
 
 class Producer
 {
 public:
-	Producer(Queue& queue) : queue_(queue) {}
+	Producer(Queue& queue) : queue(queue) {}
 
-	auto run() {
-		return std::async([=, this] {for (int i = 0; i < 1000000001; i++) { this->queue_.push(i); }});
+	auto run(unsigned int numberOfGeneratedNumbers) 
+	{
+		return std::async([=, this] {
+			for (int i = 0; i < numberOfGeneratedNumbers + 1; i++) 
+			{ 
+				this->queue.push(i); 
+			}});
 	}
 
 private:
-	Queue& queue_;
+	Queue& queue;
 };
 
 class Consumer {
 public:
-	Consumer(Queue& queue) : queue_(queue), result(0) {}
+	Consumer(Queue& queue) : queue(queue), result(0) {}
 
-	auto run() {
-		return std::async([this] {for (int i = 0; i < 10000; i++) {
-			int number = this->queue_.pop();
-			result += number; 
-		}});
+	auto run(unsigned int numberOfNumbersToPop)
+	{
+		return std::async([=, this] {
+			for (int i = 0; i < numberOfNumbersToPop + 1; i++)
+			{
+				int number = this->queue.pop();
+				result += number;
+			}
+			return result; 
+		});
 	}
 
 private:
-	Queue& queue_;
+	Queue& queue;
 	long long result;
 };
 
-
-void main()
-{
-	Queue q;
-	Producer p(q);
-	Consumer c(q);
-
-	auto future_producer = p.run();
-	auto future_consumer = c.run();
-
-	future_producer.wait();
-	future_consumer.wait();
-}
 
 class Accumulator
 {
@@ -141,15 +143,27 @@ private:
 	std::mutex accumulateMutex;
 };
 
-/*
 int main()
 {
+	unsigned int number = 100;
+
+	Queue q;
+	Producer p(q);
+	Consumer c(q);
+
+	auto future_producer = p.run(number);
+	auto future_consumer = c.run(number);
+
+	future_producer.wait();
+	std::cout << future_consumer.get() << "\n\n";
+
+
 	Accumulator acc;
 
 	// Measure time of normal accumulate
 	auto start = std::chrono::system_clock::now();
 	unsigned long long result = 0;
-	acc.accumulate(result, 1000000001);
+	acc.accumulate(result, number);
 	std::cout << result << "\n";
 	auto end = std::chrono::system_clock::now();
 	auto elapsed = (end - start).count();
@@ -157,7 +171,7 @@ int main()
 
 	// Mesure time of parallel accumulate
 	start = std::chrono::system_clock::now();
-	std::cout << acc.parallelAccumulate(1000000001) << "\n";
+	std::cout << acc.parallelAccumulate(number) << "\n";
 	end = std::chrono::system_clock::now();
 	auto elapsed2 = (end - start).count();
 	std::cout << "Elapsed time of parallel accumulate: " << elapsed2 << "\n\n";
@@ -166,4 +180,5 @@ int main()
 	std::cout << "Parallel version is " << ratio << "x faster" << "\n\n\n";
 
 	return 0;
-}*/
+}
+
